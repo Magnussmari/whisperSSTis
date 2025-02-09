@@ -27,7 +27,6 @@ WhisperSST.is is a 100% local web application that provides real-time Icelandic 
 - 📊 Support for more audio formats
 - 🧠 Improved accuracy through model fine-tuning
 - 📚 Batch processing for multiple files
-- 📖 Custom vocabulary support
 - 👥 Speaker diarization
 - ⏱️ Word-level timestamps
 - 📄 Export to more formats (DOCX, PDF)
