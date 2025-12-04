@@ -1,11 +1,16 @@
-"""Lightweight GPT helper for working with transcript post-processing."""
+"""Lightweight GPT helper for working with transcript post-processing.
+
+Supports both OpenAI API and Ollama via Hercules server.
+"""
 
 from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+
+from . import hercules_client
 
 try:
     from openai import OpenAI
@@ -14,6 +19,10 @@ except ImportError:  # pragma: no cover - handled at runtime
 
 
 DEFAULT_MODEL = os.getenv("GPT_MINI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+
+# Use Hercules for LLM by default if USE_HERCULES is set
+USE_HERCULES_LLM = os.getenv("USE_HERCULES_LLM", os.getenv("USE_HERCULES", "false")).lower() in ("true", "1", "yes")
 
 
 @dataclass
@@ -25,6 +34,8 @@ class GPTConfig:
     model: str = DEFAULT_MODEL
     temperature: float = 0.3
     max_tokens: int = 400
+    use_hercules: Optional[bool] = None  # None = use env var
+    ollama_model: str = field(default_factory=lambda: DEFAULT_OLLAMA_MODEL)
 
 
 def _build_client(config: GPTConfig) -> OpenAI:
@@ -45,20 +56,38 @@ def _build_client(config: GPTConfig) -> OpenAI:
     return OpenAI(**client_kwargs)
 
 
-def run_on_transcript(transcript: str, instruction: str, config: Optional[GPTConfig] = None) -> str:
-    """Send the transcript to GPT mini with a user-provided instruction.
+SYSTEM_PROMPT = (
+    "You are an Icelandic transcription assistant. Work only with the provided "
+    "transcript text. Keep names and numbers intact. When asked to translate, "
+    "preserve meaning and cultural context. Be concise unless the user requests details."
+)
 
+
+def run_on_transcript(transcript: str, instruction: str, config: Optional[GPTConfig] = None) -> str:
+    """Send the transcript to GPT/Ollama with a user-provided instruction.
+
+    Supports both OpenAI API and Ollama via Hercules server.
     Returns a human-friendly string so the UI can display it directly.
     """
 
     cfg = config or GPTConfig()
-    client = _build_client(cfg)
 
-    system_prompt = (
-        "You are an Icelandic transcription assistant. Work only with the provided "
-        "transcript text. Keep names and numbers intact. When asked to translate, "
-        "preserve meaning and cultural context. Be concise unless the user requests details." 
-    )
+    # Determine whether to use Hercules
+    use_hercules = cfg.use_hercules if cfg.use_hercules is not None else USE_HERCULES_LLM
+
+    user_content = f"Instruction: {instruction}\n\nTranscript (may be Icelandic):\n{transcript}"
+
+    if use_hercules:
+        return run_on_transcript_hercules(
+            user_content,
+            system=SYSTEM_PROMPT,
+            model=cfg.ollama_model,
+            temperature=cfg.temperature,
+            max_tokens=cfg.max_tokens,
+        )
+
+    # Use OpenAI API
+    client = _build_client(cfg)
 
     try:
         response = client.chat.completions.create(
@@ -66,18 +95,48 @@ def run_on_transcript(transcript: str, instruction: str, config: Optional[GPTCon
             temperature=cfg.temperature,
             max_tokens=cfg.max_tokens,
             messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Instruction: {instruction}\n\n"
-                        f"Transcript (may be Icelandic):\n{transcript}"
-                    ),
-                },
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
             ],
         )
         return response.choices[0].message.content or ""
     except Exception as exc:  # pragma: no cover - network interactions
         logging.error("GPT mini request failed: %s", exc)
+        raise
+
+
+def run_on_transcript_hercules(
+    prompt: str,
+    system: Optional[str] = None,
+    model: str = DEFAULT_OLLAMA_MODEL,
+    temperature: float = 0.3,
+    max_tokens: int = 400,
+) -> str:
+    """Send prompt to Ollama via Hercules server.
+
+    Args:
+        prompt: User prompt with transcript
+        system: System prompt
+        model: Ollama model name
+        temperature: Sampling temperature
+        max_tokens: Max tokens to generate
+
+    Returns:
+        Generated text
+    """
+    try:
+        client = hercules_client.get_client()
+        return client.llm_complete(
+            prompt=prompt,
+            system=system,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+    except hercules_client.HerculesError as exc:
+        logging.error("Hercules LLM request failed: %s", exc)
+        raise
+    except Exception as exc:
+        logging.error("Remote LLM request failed: %s", exc)
         raise
 

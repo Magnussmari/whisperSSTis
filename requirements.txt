@@ -12,3 +12,10 @@ pytest-mock
 pyinstaller
 pydub
 psutil
+requests
+
+# Hercules server dependencies (optional, for running hercules_server.py)
+# fastapi
+# uvicorn
+# python-multipart
+# httpx

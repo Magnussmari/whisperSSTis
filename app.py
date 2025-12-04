@@ -5,7 +5,7 @@ import soundfile as sf
 import streamlit as st
 import torch
 
-from whisperSSTis import audio, gpt, transcribe
+from whisperSSTis import audio, gpt, transcribe, hercules_client
 
 MODEL_LABEL_TO_KEY = {cfg["label"]: key for key, cfg in transcribe.MODEL_CONFIGS.items()}
 
@@ -52,6 +52,10 @@ if 'selected_model_key' not in st.session_state:
     st.session_state['selected_model_key'] = transcribe.DEFAULT_MODEL_KEY
 if 'language_token' not in st.session_state:
     st.session_state['language_token'] = transcribe.get_model_config()['language_token']
+if 'use_hercules' not in st.session_state:
+    st.session_state['use_hercules'] = transcribe.USE_HERCULES
+if 'hercules_status' not in st.session_state:
+    st.session_state['hercules_status'] = None
 
 # Sidebar
 with st.sidebar:
@@ -75,6 +79,41 @@ with st.sidebar:
     st.info(f"Using: {device_status}")
     if torch.cuda.is_available():
         st.success(f"GPU: {torch.cuda.get_device_name(0)}")
+
+    st.markdown("---")
+    st.subheader("🖥️ Hercules GPU Server")
+    use_hercules = st.toggle(
+        "Use Hercules (Remote GPU)",
+        value=st.session_state['use_hercules'],
+        help="Run Whisper and LLM on the Hercules server with RTX 5090/4090 GPUs"
+    )
+    st.session_state['use_hercules'] = use_hercules
+
+    if use_hercules:
+        # Check Hercules connection
+        if st.button("🔄 Check Connection", use_container_width=True):
+            try:
+                health = hercules_client.get_client().health_check()
+                st.session_state['hercules_status'] = health
+            except Exception as e:
+                st.session_state['hercules_status'] = {"error": str(e)}
+
+        if st.session_state['hercules_status']:
+            status = st.session_state['hercules_status']
+            if "error" in status:
+                st.error(f"❌ {status['error']}")
+            else:
+                st.success("✅ Connected to Hercules")
+                if status.get("gpus"):
+                    for gpu in status["gpus"]:
+                        st.caption(f"🎮 {gpu}")
+                if status.get("ollama_available"):
+                    st.caption("🤖 Ollama available")
+                else:
+                    st.caption("⚠️ Ollama not available")
+    else:
+        st.caption("Running locally on this machine")
+
     st.markdown("---")
     st.subheader("🗣️ Language & Model")
     model_labels = list(MODEL_LABEL_TO_KEY.keys())
@@ -94,23 +133,33 @@ with st.sidebar:
     st.caption(f"{chosen_config['label']} · {chosen_config['model_id']}")
 
 st.title("Multilingual Speech Recognition 🎙️")
-st.caption("Switch between Icelandic and English Whisper models for local transcription")
+if st.session_state['use_hercules']:
+    st.caption("Using Hercules GPU server (RTX 5090/4090) for fast transcription")
+else:
+    st.caption("Switch between Icelandic and English Whisper models for local transcription")
 
 
 def render_gpt_assistant(transcript_text: str, response_key: str):
-    """Render the GPT mini helper panel when transcript text exists."""
+    """Render the GPT/LLM helper panel when transcript text exists."""
 
     if not transcript_text:
         return
 
-    with st.expander("💡 GPT-5 mini assistant", expanded=False):
-        st.caption("Use GPT-5 mini to summarize, clean up wording, or translate your transcript. Requires OPENAI_API_KEY.")
+    use_hercules = st.session_state['use_hercules']
+    expander_title = "💡 LLM Assistant (Ollama)" if use_hercules else "💡 GPT-5 mini assistant"
+
+    with st.expander(expander_title, expanded=False):
+        if use_hercules:
+            st.caption("Use Ollama on Hercules to summarize, clean up wording, or translate your transcript.")
+        else:
+            st.caption("Use GPT-5 mini to summarize, clean up wording, or translate your transcript. Requires OPENAI_API_KEY.")
+
         default_prompt = "Skrifaðu stutta samantekt á íslensku og bættu við helstu lykilatriðum."
         prompt_value = st.session_state.get(f"prompt_{response_key}", default_prompt)
         prompt = st.text_area(
             "Instruction",
             value=prompt_value,
-            help="Tell GPT-5 mini what to do with the transcript (e.g. summarize, translate, bullet points).",
+            help="Tell the LLM what to do with the transcript (e.g. summarize, translate, bullet points).",
             key=f"prompt_input_{response_key}"
         )
 
@@ -120,36 +169,49 @@ def render_gpt_assistant(transcript_text: str, response_key: str):
         with col_b:
             max_tokens = st.number_input("Max tokens", min_value=100, max_value=1200, value=400, step=50, key=f"tokens_{response_key}")
 
-        if st.button("Ask GPT-5 mini", key=f"ask_gpt_{response_key}", use_container_width=True):
-            if not os.getenv("OPENAI_API_KEY"):
+        button_label = "Ask LLM" if use_hercules else "Ask GPT-5 mini"
+        if st.button(button_label, key=f"ask_gpt_{response_key}", use_container_width=True):
+            # Check if we can proceed
+            if not use_hercules and not os.getenv("OPENAI_API_KEY"):
                 st.warning("Set OPENAI_API_KEY to enable GPT mini features.")
             else:
                 try:
-                    with st.spinner("🧠 Contacting GPT-5 mini..."):
+                    spinner_text = "🧠 Contacting Ollama on Hercules..." if use_hercules else "🧠 Contacting GPT-5 mini..."
+                    with st.spinner(spinner_text):
                         response = gpt.run_on_transcript(
                             transcript_text,
                             instruction=prompt,
-                            config=gpt.GPTConfig(temperature=temperature, max_tokens=int(max_tokens)),
+                            config=gpt.GPTConfig(
+                                temperature=temperature,
+                                max_tokens=int(max_tokens),
+                                use_hercules=use_hercules,
+                            ),
                         )
                     st.session_state[response_key] = response
                     st.session_state[f"prompt_{response_key}"] = prompt
                 except Exception as e:
-                    st.error(f"GPT mini error: {e}")
+                    st.error(f"LLM error: {e}")
 
         if st.session_state.get(response_key):
-            st.markdown("###### GPT-5 mini response")
+            st.markdown("###### LLM response")
             st.write(st.session_state[response_key])
 
-# Load the model if not loaded
-if st.session_state['model'] is None or st.session_state['processor'] is None:
+# Load the model if not loaded (skip when using Hercules)
+if not st.session_state['use_hercules']:
+    if st.session_state['model'] is None or st.session_state['processor'] is None:
+        selected_key = st.session_state['selected_model_key']
+        config = transcribe.get_model_config(selected_key)
+        with st.spinner(f"🤖 Loading {config['label']}... This might take a minute..."):
+            model, processor = transcribe.load_model(selected_key)
+            st.session_state['model'] = model
+            st.session_state['processor'] = processor
+            st.session_state['language_token'] = config['language_token']
+        st.success(f"✅ {config['label']} ready!")
+else:
+    # When using Hercules, ensure language token is set
     selected_key = st.session_state['selected_model_key']
     config = transcribe.get_model_config(selected_key)
-    with st.spinner(f"🤖 Loading {config['label']}... This might take a minute..."):
-        model, processor = transcribe.load_model(selected_key)
-        st.session_state['model'] = model
-        st.session_state['processor'] = processor
-        st.session_state['language_token'] = config['language_token']
-    st.success(f"✅ {config['label']} ready!")
+    st.session_state['language_token'] = config['language_token']
 
 # Create tabs
 tabs = ["🎤 Record Audio", "📁 Upload Audio"]
@@ -190,12 +252,15 @@ if active_tab == 0:
                         sf.write(temp_path, audio_data, 16000)
                         st.audio(temp_path)
                         
-                        with st.spinner("🤖 Processing your speech..."):
+                        spinner_msg = "🤖 Processing on Hercules..." if st.session_state['use_hercules'] else "🤖 Processing your speech..."
+                        with st.spinner(spinner_msg):
                             transcription = transcribe.transcribe_audio(
                                 audio_data,
                                 st.session_state['model'],
                                 st.session_state['processor'],
                                 language_token=st.session_state['language_token'],
+                                use_hercules=st.session_state['use_hercules'],
+                                model_key=st.session_state['selected_model_key'],
                             )
                         st.session_state['last_transcript_text'] = transcription
                         st.session_state['gpt_record_response'] = ""
@@ -282,7 +347,8 @@ elif active_tab == 1:
                     """)
                     
                     if st.button("🚀 Start Processing", use_container_width=True):
-                        with st.spinner("🤖 Processing your audio..."):
+                        spinner_msg = "🤖 Processing on Hercules..." if st.session_state['use_hercules'] else "🤖 Processing your audio..."
+                        with st.spinner(spinner_msg):
                             transcriptions = transcribe.transcribe_long_audio(
                                 audio_data,
                                 st.session_state['model'],
@@ -290,6 +356,8 @@ elif active_tab == 1:
                                 duration,
                                 chunk_size,
                                 language_token=st.session_state['language_token'],
+                                use_hercules=st.session_state['use_hercules'],
+                                model_key=st.session_state['selected_model_key'],
                             )
                         st.session_state['last_transcript_text'] = "\n".join(transcriptions)
                         st.session_state['gpt_upload_response'] = ""

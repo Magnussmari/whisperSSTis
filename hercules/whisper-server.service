@@ -1,0 +1,15 @@
+[Unit]
+Description=WhisperSSTis GPU Transcription Server
+After=network.target
+
+[Service]
+Type=simple
+User=magnus
+WorkingDirectory=/home/magnus/Documents/Github/whisperSSTis
+Environment="PATH=/home/magnus/Documents/Github/whisperSSTis/venv/bin"
+ExecStart=/home/magnus/Documents/Github/whisperSSTis/venv/bin/uvicorn hercules_server:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

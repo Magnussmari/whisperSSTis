@@ -1,17 +1,25 @@
-"""Transcription helpers built around the fine-tuned Whisper model."""
+"""Transcription helpers built around the fine-tuned Whisper model.
+
+Supports both local and remote (Hercules) transcription modes.
+"""
 
 from __future__ import annotations
 
 import logging
 import math
+import os
 import re
 from datetime import timedelta
-from typing import Callable, Dict, List, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
+from . import hercules_client
+
+# Environment variable to control transcription mode
+USE_HERCULES = os.getenv("USE_HERCULES", "false").lower() in ("true", "1", "yes")
 
 MODEL_CONFIGS: Dict[str, Dict[str, str]] = {
     "icelandic": {
@@ -71,8 +79,33 @@ def transcribe_audio(
     processor,
     sample_rate: int = 16000,
     language_token: str | None = None,
+    use_hercules: Optional[bool] = None,
+    model_key: str = DEFAULT_MODEL_KEY,
 ) -> str:
-    """Transcribe a single audio array."""
+    """Transcribe a single audio array.
+
+    Args:
+        audio_data: Audio samples as numpy array
+        model: Local Whisper model (ignored if using Hercules)
+        processor: Local Whisper processor (ignored if using Hercules)
+        sample_rate: Audio sample rate
+        language_token: Language token override
+        use_hercules: Force Hercules mode (None = use env var)
+        model_key: Model key for Hercules transcription
+
+    Returns:
+        Transcribed text
+    """
+    # Determine whether to use Hercules
+    remote = use_hercules if use_hercules is not None else USE_HERCULES
+
+    if remote:
+        return transcribe_audio_remote(
+            audio_data,
+            sample_rate=sample_rate,
+            model_key=model_key,
+            language_token=language_token,
+        )
 
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -91,6 +124,39 @@ def transcribe_audio(
         return processor.decode(predicted_ids, skip_special_tokens=True)
     except Exception as exc:
         logger.error("Error transcribing audio: %s", exc)
+        raise
+
+
+def transcribe_audio_remote(
+    audio_data: np.ndarray,
+    sample_rate: int = 16000,
+    model_key: str = DEFAULT_MODEL_KEY,
+    language_token: str | None = None,
+) -> str:
+    """Transcribe audio using Hercules remote server.
+
+    Args:
+        audio_data: Audio samples as numpy array
+        sample_rate: Audio sample rate
+        model_key: Which Whisper model to use
+        language_token: Language token override
+
+    Returns:
+        Transcribed text
+    """
+    try:
+        client = hercules_client.get_client()
+        return client.transcribe(
+            audio_data,
+            sample_rate=sample_rate,
+            model_key=model_key,
+            language_token=language_token,
+        )
+    except hercules_client.HerculesError as exc:
+        logger.error("Hercules transcription error: %s", exc)
+        raise
+    except Exception as exc:
+        logger.error("Remote transcription error: %s", exc)
         raise
 
 
@@ -125,8 +191,26 @@ def transcribe_long_audio(
     sample_rate: int = 16000,
     progress_callback: Callable[[int, int], None] | None = None,
     language_token: str | None = None,
+    use_hercules: Optional[bool] = None,
+    model_key: str = DEFAULT_MODEL_KEY,
 ) -> List[str]:
-    """Transcribe long audio by breaking it into timestamped chunks."""
+    """Transcribe long audio by breaking it into timestamped chunks.
+
+    Args:
+        audio_data: Audio samples as numpy array
+        model: Local Whisper model (ignored if using Hercules)
+        processor: Local Whisper processor (ignored if using Hercules)
+        duration: Audio duration in seconds
+        chunk_size: Size of each chunk in seconds
+        sample_rate: Audio sample rate
+        progress_callback: Optional callback for progress updates
+        language_token: Language token override
+        use_hercules: Force Hercules mode (None = use env var)
+        model_key: Model key for remote transcription
+
+    Returns:
+        List of timestamped transcription strings
+    """
 
     try:
         chunk_size = max(chunk_size, 1)
@@ -147,6 +231,8 @@ def transcribe_long_audio(
                 processor,
                 sample_rate,
                 language_token=language_token,
+                use_hercules=use_hercules,
+                model_key=model_key,
             )
 
             start_time = format_timestamp(start / sample_rate)
