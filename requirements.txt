@@ -2,6 +2,7 @@ streamlit
 torch
 transformers
 numpy
+openai
 sounddevice>=0.4.6
 soundfile
 scipy

@@ -1,2 +1,5 @@
 [logger]
-level = "error" 
+level = "error"
+
+[server]
+maxUploadSize = 1000 

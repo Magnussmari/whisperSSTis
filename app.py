@@ -1,10 +1,13 @@
-import streamlit as st
-import os
 import math
-import torch
-import soundfile as sf
+import os
 
-from whisperSSTis import audio, transcribe
+import soundfile as sf
+import streamlit as st
+import torch
+
+from whisperSSTis import audio, gpt, transcribe
+
+MODEL_LABEL_TO_KEY = {cfg["label"]: key for key, cfg in transcribe.MODEL_CONFIGS.items()}
 
 # Set page config and theme
 st.set_page_config(
@@ -32,6 +35,24 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state
+if 'model' not in st.session_state:
+    st.session_state['model'] = None
+if 'processor' not in st.session_state:
+    st.session_state['processor'] = None
+if 'audio_data' not in st.session_state:
+    st.session_state['audio_data'] = None
+if 'last_transcript_text' not in st.session_state:
+    st.session_state['last_transcript_text'] = ""
+if 'gpt_record_response' not in st.session_state:
+    st.session_state['gpt_record_response'] = ""
+if 'gpt_upload_response' not in st.session_state:
+    st.session_state['gpt_upload_response'] = ""
+if 'selected_model_key' not in st.session_state:
+    st.session_state['selected_model_key'] = transcribe.DEFAULT_MODEL_KEY
+if 'language_token' not in st.session_state:
+    st.session_state['language_token'] = transcribe.get_model_config()['language_token']
+
 # Sidebar
 with st.sidebar:
     st.image("assets/websitelogo.png", width=200)
@@ -54,25 +75,81 @@ with st.sidebar:
     st.info(f"Using: {device_status}")
     if torch.cuda.is_available():
         st.success(f"GPU: {torch.cuda.get_device_name(0)}")
+    st.markdown("---")
+    st.subheader("🗣️ Language & Model")
+    model_labels = list(MODEL_LABEL_TO_KEY.keys())
+    active_label = transcribe.get_model_config(st.session_state['selected_model_key'])["label"]
+    selected_label = st.selectbox(
+        "Choose speech model",
+        options=model_labels,
+        index=model_labels.index(active_label),
+        help="First run downloads the model weights locally. Choosing a new model reloads the session.",
+    )
+    selected_key = MODEL_LABEL_TO_KEY[selected_label]
+    if selected_key != st.session_state['selected_model_key']:
+        st.session_state['selected_model_key'] = selected_key
+        st.session_state['model'] = None
+        st.session_state['processor'] = None
+    chosen_config = transcribe.get_model_config(st.session_state['selected_model_key'])
+    st.caption(f"{chosen_config['label']} · {chosen_config['model_id']}")
 
-st.title("Icelandic Speech Recognition 🎙️")
-st.caption("Powered by fine-tuned Whisper AI for the Icelandic language")
+st.title("Multilingual Speech Recognition 🎙️")
+st.caption("Switch between Icelandic and English Whisper models for local transcription")
 
-# Initialize session state
-if 'model' not in st.session_state:
-    st.session_state['model'] = None
-if 'processor' not in st.session_state:
-    st.session_state['processor'] = None
-if 'audio_data' not in st.session_state:
-    st.session_state['audio_data'] = None
+
+def render_gpt_assistant(transcript_text: str, response_key: str):
+    """Render the GPT mini helper panel when transcript text exists."""
+
+    if not transcript_text:
+        return
+
+    with st.expander("💡 GPT-5 mini assistant", expanded=False):
+        st.caption("Use GPT-5 mini to summarize, clean up wording, or translate your transcript. Requires OPENAI_API_KEY.")
+        default_prompt = "Skrifaðu stutta samantekt á íslensku og bættu við helstu lykilatriðum."
+        prompt_value = st.session_state.get(f"prompt_{response_key}", default_prompt)
+        prompt = st.text_area(
+            "Instruction",
+            value=prompt_value,
+            help="Tell GPT-5 mini what to do with the transcript (e.g. summarize, translate, bullet points).",
+            key=f"prompt_input_{response_key}"
+        )
+
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            temperature = st.slider("Creativity", min_value=0.0, max_value=1.0, value=0.3, step=0.05, key=f"temp_{response_key}")
+        with col_b:
+            max_tokens = st.number_input("Max tokens", min_value=100, max_value=1200, value=400, step=50, key=f"tokens_{response_key}")
+
+        if st.button("Ask GPT-5 mini", key=f"ask_gpt_{response_key}", use_container_width=True):
+            if not os.getenv("OPENAI_API_KEY"):
+                st.warning("Set OPENAI_API_KEY to enable GPT mini features.")
+            else:
+                try:
+                    with st.spinner("🧠 Contacting GPT-5 mini..."):
+                        response = gpt.run_on_transcript(
+                            transcript_text,
+                            instruction=prompt,
+                            config=gpt.GPTConfig(temperature=temperature, max_tokens=int(max_tokens)),
+                        )
+                    st.session_state[response_key] = response
+                    st.session_state[f"prompt_{response_key}"] = prompt
+                except Exception as e:
+                    st.error(f"GPT mini error: {e}")
+
+        if st.session_state.get(response_key):
+            st.markdown("###### GPT-5 mini response")
+            st.write(st.session_state[response_key])
 
 # Load the model if not loaded
-if st.session_state['model'] is None:
-    with st.spinner("🤖 Loading AI model... This might take a minute..."):
-        model, processor = transcribe.load_model()
+if st.session_state['model'] is None or st.session_state['processor'] is None:
+    selected_key = st.session_state['selected_model_key']
+    config = transcribe.get_model_config(selected_key)
+    with st.spinner(f"🤖 Loading {config['label']}... This might take a minute..."):
+        model, processor = transcribe.load_model(selected_key)
         st.session_state['model'] = model
         st.session_state['processor'] = processor
-    st.success("✅ Model loaded successfully!")
+        st.session_state['language_token'] = config['language_token']
+    st.success(f"✅ {config['label']} ready!")
 
 # Create tabs
 tabs = ["🎤 Record Audio", "📁 Upload Audio"]
@@ -114,10 +191,19 @@ if active_tab == 0:
                         st.audio(temp_path)
                         
                         with st.spinner("🤖 Processing your speech..."):
-                            transcription = transcribe.transcribe_audio(audio_data, st.session_state['model'], st.session_state['processor'])
+                            transcription = transcribe.transcribe_audio(
+                                audio_data,
+                                st.session_state['model'],
+                                st.session_state['processor'],
+                                language_token=st.session_state['language_token'],
+                            )
+                        st.session_state['last_transcript_text'] = transcription
+                        st.session_state['gpt_record_response'] = ""
+
                         st.markdown("##### 📝 Transcription")
                         st.markdown(f'<div class="file-info">{transcription}</div>', unsafe_allow_html=True)
                         os.remove(temp_path)
+                        render_gpt_assistant(transcription, "gpt_record_response")
                     except Exception as e:
                         st.error(f"❌ Error: {str(e)}")
     
@@ -202,8 +288,11 @@ elif active_tab == 1:
                                 st.session_state['model'],
                                 st.session_state['processor'],
                                 duration,
-                                chunk_size
+                                chunk_size,
+                                language_token=st.session_state['language_token'],
                             )
+                        st.session_state['last_transcript_text'] = "\n".join(transcriptions)
+                        st.session_state['gpt_upload_response'] = ""
                         
                         st.markdown("##### 💾 Download Options")
                         dl_col1, dl_col2 = st.columns(2)
@@ -217,6 +306,7 @@ elif active_tab == 1:
                         st.markdown("##### 📝 Transcription")
                         for trans in transcriptions:
                             st.markdown(f'<div class="file-info">{trans}</div>', unsafe_allow_html=True)
+                        render_gpt_assistant("\n".join(transcriptions), "gpt_upload_response")
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
     

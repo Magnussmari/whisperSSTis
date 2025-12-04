@@ -102,14 +102,20 @@ def test_transcribe_long_audio(mock_processor, mock_model, mocker):
     # Mock the processor's decode method
     mock_processor_instance.decode.return_value = "Mocked transcription"
 
-    # Create mock audio data
+    # Create mock audio data for three seconds
     mock_audio_data = np.zeros(48000, dtype=np.float32)
 
-    # Call the function
-    transcriptions = transcribe.transcribe_long_audio(mock_audio_data, mock_model_instance, mock_processor_instance, duration=3)
+    # Call the function with one-second chunks
+    transcriptions = transcribe.transcribe_long_audio(
+        mock_audio_data,
+        mock_model_instance,
+        mock_processor_instance,
+        duration=3,
+        chunk_size=1,
+    )
 
     # Assertions
     assert isinstance(transcriptions, list)
-    assert len(transcriptions) == 2
-    assert transcriptions[0] == "[0:00:00 → 0:00:30] Mocked transcription"
-    assert transcriptions[1] == "[0:00:30 → 0:00:03] Mocked transcription"
+    assert len(transcriptions) == 3
+    assert transcriptions[0] == "[0:00:00 → 0:00:01] Mocked transcription"
+    assert transcriptions[-1] == "[0:00:02 → 0:00:03] Mocked transcription"

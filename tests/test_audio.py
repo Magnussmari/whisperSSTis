@@ -19,12 +19,13 @@ def mock_audio_devices():
 @patch('whisperSSTis.audio.sd.query_devices')
 def test_get_audio_devices(mock_query_devices, mock_audio_devices):
     """Test get_audio_devices function."""
-    mock_query_devices.return_value = {'name': 'Device 1', 'max_input_channels': 1, 'default_samplerate': 48000}
+    mock_query_devices.return_value = [{'name': 'Device 1', 'max_input_channels': 1, 'default_samplerate': 48000}]
     devices = audio.get_audio_devices()
     assert "Device 1 (ID: 0)" in devices
 
+@patch('whisperSSTis.audio.sd.query_devices', return_value={'default_samplerate': 48000})
 @patch('whisperSSTis.audio.sd.InputStream')
-def test_audio_stream_start_stop(mock_input_stream):
+def test_audio_stream_start_stop(mock_input_stream, _query_devices):
     """Test AudioStream start and stop methods."""
     stream = audio.AudioStream(device_id=0, samplerate=16000, chunk_size=1024)
     
@@ -43,8 +44,10 @@ def test_audio_stream_start_stop(mock_input_stream):
     assert stream.stream is None
     assert stream.is_recording is False
 
+@patch('whisperSSTis.audio.sd.query_devices', return_value={'default_samplerate': 48000})
+@patch('whisperSSTis.audio.sd.InputStream')
 @patch('whisperSSTis.audio.AudioStream.get_audio_chunk')
-def test_record_audio(mock_get_audio_chunk):
+def test_record_audio(mock_get_audio_chunk, _mock_input_stream, _query_devices):
     """Test record_audio function."""
     duration = 1
     device_id = 0
@@ -142,8 +145,9 @@ def test_load_audio_file_exception(mocker):
     with pytest.raises(Exception, match="Test exception"):
         audio.load_audio_file(mock_uploaded_file)
 
+@patch('whisperSSTis.audio.sd.query_devices', return_value={'default_samplerate': 48000})
 @patch('whisperSSTis.audio.sd.InputStream')
-def test_audio_stream_resampling(mock_input_stream, mocker):
+def test_audio_stream_resampling(mock_input_stream, _query_devices, mocker):
     """Test AudioStream resampling functionality."""
     # Mock stream object
     mock_stream = mock_input_stream.return_value
