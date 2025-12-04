@@ -246,7 +246,7 @@ def test_ollama():
                 for m in models[:5]:  # Show first 5
                     print(f"    {Colors.CYAN}•{Colors.END} {m.get('name', m)}")
             else:
-                print(f"  {Colors.YELLOW}No models found. Run: ollama pull llama3{Colors.END}")
+                print(f"  {Colors.YELLOW}No models found. Run: ollama pull ministral-3b:14b{Colors.END}")
                 return False
         else:
             print_status("List models", f"status {response.status_code}", False)
@@ -260,7 +260,7 @@ def test_ollama():
 
     payload = {
         "prompt": "Say 'hello' in Icelandic. Reply with just the word.",
-        "model": "llama3",
+        "model": "ministral-3b:14b",
         "temperature": 0.1,
         "max_tokens": 50
     }

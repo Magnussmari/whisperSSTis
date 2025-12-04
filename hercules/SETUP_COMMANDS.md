@@ -116,8 +116,7 @@ sudo systemctl enable ollama
 sudo systemctl start ollama
 
 # Pull required models
-ollama pull llama3
-ollama pull mistral
+ollama pull ministral-3b:14b
 
 # Verify models
 ollama list

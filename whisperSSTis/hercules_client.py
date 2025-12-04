@@ -142,7 +142,7 @@ class HerculesClient:
         self,
         prompt: str,
         system: Optional[str] = None,
-        model: str = "llama3",
+        model: str = "ministral-3b:14b",
         temperature: float = 0.3,
         max_tokens: int = 400,
     ) -> str:

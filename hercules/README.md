@@ -152,8 +152,7 @@ Ensure Ollama is running on Hercules:
 ollama list
 
 # Pull models
-ollama pull llama3
-ollama pull mistral
+ollama pull ministral-3b:14b
 
 # Ollama runs on port 11434 by default
 ```

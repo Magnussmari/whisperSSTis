@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - handled at runtime
 
 
 DEFAULT_MODEL = os.getenv("GPT_MINI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
-DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+DEFAULT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ministral-3b:14b")
 
 # Use Hercules for LLM by default if USE_HERCULES is set
 USE_HERCULES_LLM = os.getenv("USE_HERCULES_LLM", os.getenv("USE_HERCULES", "false")).lower() in ("true", "1", "yes")
