@@ -17,7 +17,7 @@ class WhisperSSTLauncher:
         # Set icon if available
         try:
             self.root.iconbitmap("whisper_icon.ico")
-        except:
+        except (tk.TclError, FileNotFoundError):
             pass
         
         style = ttk.Style()
