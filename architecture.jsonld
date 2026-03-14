@@ -60,7 +60,7 @@
         "arch:external/ffmpeg"
       ],
       "arch:exposesPort": null,
-      "arch:techStack": ["sounddevice", "soundfile", "scipy", "pydub", "numpy"],
+      "arch:techStack": ["sounddevice", "soundfile", "scipy", "numpy", "subprocess/ffmpeg"],
       "arch:configuredIn": "whisperSSTis/audio.py",
       "arch:confidence": "verified",
       "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
@@ -187,9 +187,9 @@
       "@id": "arch:external/ffmpeg",
       "@type": "arch:ExternalDependency",
       "name": "FFmpeg",
-      "description": "Audio format conversion. Required by pydub for M4A to WAV conversion. Optional — only needed for non-WAV/FLAC uploads.",
-      "arch:confidence": "inferred",
-      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+      "description": "Audio format conversion called via subprocess. Required for M4A, MP3, OGG, WebM to WAV conversion. Must be installed as a system package.",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T06:30:00Z"
     },
 
     {
