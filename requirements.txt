@@ -12,9 +12,6 @@ psutil>=5.9
 # Optional: GPT post-processing
 openai>=1.0
 
-# Optional: audio format conversion
-ffmpeg-python>=0.2
-
 # Dev / testing
 pytest>=8.0
 pytest-mock>=3.12
