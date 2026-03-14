@@ -96,8 +96,7 @@ def test_load_audio_file(mocker):
     assert isinstance(file_info, dict)
 
 def test_load_m4a_file(mocker):
-    """Test load_audio_file function with m4a file."""
-    # Mock the uploaded file
+    """Test load_audio_file function with m4a file (ffmpeg conversion)."""
     class MockUploadedFile:
         def __init__(self, name, content):
             self.name = name
@@ -105,23 +104,31 @@ def test_load_m4a_file(mocker):
         def getvalue(self):
             return self.content
 
-    # Create a mock m4a file
-    mock_audio_content = b"Mock m4a audio data"
-    mock_uploaded_file = MockUploadedFile("test.m4a", mock_audio_content)
+    mock_uploaded_file = MockUploadedFile("test.m4a", b"Mock m4a audio data")
 
-    # Mock AudioSegment and sf.read
-    mock_audio_segment = mocker.MagicMock()
-    mocker.patch("whisperSSTis.audio.AudioSegment.from_file", return_value=mock_audio_segment)
+    # Mock shutil.which to find ffmpeg
+    mocker.patch("whisperSSTis.audio.shutil.which", return_value="/usr/bin/ffmpeg")
+    # Mock subprocess.run for ffmpeg conversion
+    mock_result = mocker.MagicMock()
+    mock_result.returncode = 0
+    mocker.patch("whisperSSTis.audio.subprocess.run", return_value=mock_result)
+    # Mock sf.read to return audio from the converted file
     mocker.patch("whisperSSTis.audio.sf.read", return_value=(np.zeros(16000), 16000))
     mocker.patch("whisperSSTis.audio.os.unlink")
+    mocker.patch("whisperSSTis.audio.os.path.exists", return_value=True)
 
-    # Call the function
     audio_data, duration, file_info = audio.load_audio_file(mock_uploaded_file)
 
-    # Assertions
     assert isinstance(audio_data, np.ndarray)
     assert duration == 1.0
     assert isinstance(file_info, dict)
+
+
+def test_convert_to_wav_raises_without_ffmpeg(mocker):
+    """Test that _convert_to_wav raises when ffmpeg is not installed."""
+    mocker.patch("whisperSSTis.audio.shutil.which", return_value=None)
+    with pytest.raises(RuntimeError, match="ffmpeg is required"):
+        audio._convert_to_wav("/tmp/fake.m4a", ".m4a")
 
 def test_load_audio_file_exception(mocker):
     """Test load_audio_file function with exception."""

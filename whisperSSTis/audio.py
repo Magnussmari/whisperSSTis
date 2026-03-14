@@ -6,6 +6,8 @@ import logging
 import math
 import os
 import queue
+import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
@@ -15,7 +17,6 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from pydub import AudioSegment
 from scipy import signal
 
 logger = logging.getLogger(__name__)
@@ -156,14 +157,26 @@ def get_file_info(audio_data: np.ndarray, sample_rate: int) -> Dict[str, str]:
 
 
 def _convert_to_wav(temp_path: str, suffix: str) -> str:
-    """Convert non-wav files to wav for consistent processing."""
+    """Convert non-wav files to wav using system ffmpeg."""
 
-    if suffix.lower() != ".m4a":
+    if suffix.lower() not in (".m4a", ".mp3", ".ogg", ".webm"):
         return temp_path
 
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin is None:
+        raise RuntimeError(
+            "ffmpeg is required for converting non-WAV audio files. "
+            "Install it with: brew install ffmpeg (macOS) or apt install ffmpeg (Linux)"
+        )
+
     converted_path = f"{temp_path}.wav"
-    audio_segment = AudioSegment.from_file(temp_path)
-    audio_segment.export(converted_path, format="wav")
+    result = subprocess.run(
+        [ffmpeg_bin, "-i", temp_path, "-ar", "16000", "-ac", "1", "-y", converted_path],
+        capture_output=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg conversion failed: {result.stderr.decode(errors='replace')}")
     return converted_path
 
 
