@@ -1,6 +1,7 @@
 import math
 import os
 
+import numpy as np
 import soundfile as sf
 import streamlit as st
 import torch
@@ -185,11 +186,18 @@ if active_tab == 0:
                         with st.spinner("🎤 Recording in progress..."):
                             audio_data = audio.record_audio(rec_duration, selected_device_id)
                         st.session_state['audio_data'] = audio_data
-                        
+
+                        # Display waveform
+                        st.markdown("##### 🔊 Audio Waveform")
+                        display_samples = min(len(audio_data), 4000)
+                        step = max(1, len(audio_data) // display_samples)
+                        waveform = audio_data[::step]
+                        st.line_chart(waveform, height=120, use_container_width=True)
+
                         temp_path = "temp_recording.wav"
                         sf.write(temp_path, audio_data, 16000)
                         st.audio(temp_path)
-                        
+
                         with st.spinner("🤖 Processing your speech..."):
                             transcription = transcribe.transcribe_audio(
                                 audio_data,

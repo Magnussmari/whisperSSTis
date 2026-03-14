@@ -2,9 +2,16 @@
 build/
 dist/
 *.spec
+*.egg-info/
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
+
+# Environment files (secrets)
+.env
+.env.*
+!env.example
 
 # Virtual environment
 .venv/

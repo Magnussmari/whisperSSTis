@@ -1,75 +1,84 @@
-# CLAUDE.md
+# CLAUDE.md — WhisperSST.is
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Identity
+Local-first Icelandic/English speech-to-text app. Python 3.10+, Streamlit UI, PyTorch + HuggingFace Transformers 5.x, sounddevice audio capture. MIT licensed. No cloud processing (GPT post-processing is optional).
+
+## Priority Order
+correctness > privacy > clarity > maintainability > performance
+
+## Quick Start
+```bash
+brew install portaudio ffmpeg       # macOS system deps
+uv sync --all-extras                # Install everything via uv
+uv run streamlit run app.py         # Launch on http://localhost:8501
+```
 
 ## Commands
-
-### Development & Testing
 ```bash
-# Run application with GUI launcher
-python launcher.py
-
-# Run Streamlit app directly
-streamlit run app.py
-
-# Run tests
-pytest
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run specific test file
-pytest tests/test_audio.py
-pytest tests/test_transcribe.py
+uv sync --all-extras              # Install all deps (lockfile-pinned)
+uv run streamlit run app.py       # Run web app (port 8501)
+uv run python launcher.py         # Run via Tkinter GUI launcher
+uv run pytest                     # Run all tests (26 tests)
+uv run python scripts/build.py    # PyInstaller packaging (from root)
 ```
 
-### System Dependencies
-```bash
-# macOS
-brew install portaudio
-
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install portaudio19-dev python3-pyaudio
-
-# Windows
-# Run setup_dependencies.bat
+## Structure
+```
+app.py                    # Streamlit web interface (main entry point)
+launcher.py               # Tkinter GUI launcher wrapping Streamlit
+whisperSSTis/             # Core Python package
+  __init__.py             # Exports audio, transcribe, gpt
+  audio.py                # AudioStream, recording, file loading, ffmpeg conversion
+  transcribe.py           # Model loading, transcription, SRT generation
+  gpt.py                  # Optional OpenAI GPT post-processing
+tests/
+  conftest.py             # Shared fixtures (silence_1s, mock_model, mock_processor)
+  test_audio.py           # Audio module unit tests
+  test_transcribe.py      # Transcribe module unit tests
+  test_gpt.py             # GPT module unit tests
+  demo/test_vedur.mp3     # Demo audio file for manual testing
+scripts/
+  build.py                # PyInstaller packaging (run from project root)
+  run_whisperSST.sh/bat   # Distribution launcher scripts
+  setup_dependencies.*    # End-user system dep installers
+archive/                  # Superseded docs (agents.md, TODO.md, etc.)
+docs/missions/            # Mission reports
+.github/workflows/ci.yml # GitHub Actions CI (Python 3.10-3.12, pytest, pip-audit)
+.streamlit/config.toml    # Streamlit config (max upload 1000MB)
+pyproject.toml            # Package metadata, deps, pytest/ruff config
+architecture.jsonld       # Machine-readable JSON-LD architecture graph
 ```
 
-## Architecture
+## Models
+Two Whisper models in `transcribe.py:MODEL_CONFIGS`:
+- `icelandic`: `carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h` (default)
+- `english`: `openai/whisper-large-v3`
 
-### Core Components
+## Key Patterns
+- **16kHz sample rate** — all audio resampled before Whisper inference
+- **30-second chunk processing** — long audio split for memory efficiency
+- **Session state** — model, processor, audio persisted in `st.session_state`
+- **ffmpeg for conversion** — M4A/MP3/OGG converted via subprocess ffmpeg
+- **GPT is optional** — gpt.py gracefully handles missing `openai` package
+- **uv for packaging** — `uv sync` with lockfile for reproducible installs
 
-**whisperSSTis/** - Main module for audio processing and transcription
-- `audio.py`: Audio recording/processing, device management, format conversion
-- `transcribe.py`: Whisper model integration, transcription with timestamps
+## System Dependencies
+- **PortAudio** — required by sounddevice for mic capture
+- **FFmpeg** — required for non-WAV/FLAC audio file conversion
 
-**app.py** - Streamlit web interface
-- Recording and file upload functionality
-- Real-time transcription display
-- Export to TXT/SRT formats
-- Device selection UI
+## Environment Variables
+```
+OPENAI_API_KEY      # Required only for GPT post-processing
+GPT_MINI_MODEL      # Override GPT model (default: gpt-4o-mini)
+OPENAI_BASE_URL     # Override OpenAI endpoint
+```
 
-**launcher.py** - Tkinter GUI launcher
-- Manages Streamlit process lifecycle
-- Port management and browser integration
-- Process monitoring
+## Anti-Patterns
+1. **`unsafe_allow_html=True`** in `app.py` — static CSS only, never pass user input.
 
-### Model & Processing
+## Git Conventions
+- Semantic prefixes: `fix:`, `feat:`, `refactor:`, `deps:`, `test:`, `docs:`, `ci:`
+- Atomic commits, green-to-green
 
-- Uses `carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h` model
-- 16kHz sample rate for Whisper compatibility
-- Supports resampling from native device rates
-- GPU acceleration when available (falls back to CPU)
-
-### Audio Format Support
-- Direct: WAV, FLAC
-- Via FFmpeg: MP3, M4A
-- Handles mono/stereo conversion automatically
-
-### Key Technical Details
-
-- **Privacy**: 100% local processing, no cloud dependencies after model download
-- **State Management**: Uses Streamlit session state for audio data and transcriptions
-- **Chunk Processing**: 30-second chunks for efficient memory usage
-- **Timestamp Generation**: Word-level timing for SRT export
+## Architecture Map
+`architecture.jsonld` — 25 nodes. Update with `/update-architecture`.

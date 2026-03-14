@@ -1,0 +1,316 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "arch": "https://whispersstis.smarason.is/architecture#",
+    "arch:service": {"@type": "@id"},
+    "arch:dependsOn": {"@type": "@id"},
+    "arch:dataFlow": {"@type": "@id"},
+    "arch:exposesPort": {"@type": "xsd:integer"},
+    "arch:techStack": {"@container": "@list"},
+    "arch:environment": {"@type": "@id"},
+    "arch:healthEndpoint": {"@type": "@id"},
+    "arch:configuredIn": {"@type": "@id"},
+    "arch:lastAuditedBy": {"@type": "xsd:string"},
+    "arch:lastAuditedAt": {"@type": "xsd:dateTime"},
+    "arch:confidence": {"@type": "xsd:string"},
+    "arch:source": {"@type": "@id"},
+    "arch:target": {"@type": "@id"},
+    "arch:protocol": {"@type": "xsd:string"},
+    "arch:dataType": {"@type": "xsd:string"},
+    "arch:deprecated": {"@type": "xsd:boolean"}
+  },
+  "@graph": [
+    {
+      "@id": "arch:system/whispersstis",
+      "@type": "arch:System",
+      "name": "WhisperSST.is",
+      "description": "Local-first Icelandic and English speech recognition application using fine-tuned Whisper models. Streamlit web UI with optional GPT post-processing. 100% local audio processing.",
+      "arch:lastAuditedBy": "claude-code/self-optimize",
+      "arch:lastAuditedAt": "2026-03-14T06:15:00Z",
+      "arch:techStack": ["Python 3.10+", "Streamlit", "PyTorch", "HuggingFace Transformers", "sounddevice", "soundfile", "scipy", "pydub", "OpenAI SDK (optional)"],
+      "url": "https://github.com/Magnussmari/whisperSSTis",
+      "license": "https://spdx.org/licenses/MIT"
+    },
+
+    {
+      "@id": "arch:service/streamlit-app",
+      "@type": "arch:Service",
+      "name": "Streamlit Web Application",
+      "description": "Main user-facing web interface (app.py). Provides audio recording, file upload, model selection, transcription display, and export to TXT/SRT. Manages session state for model and audio data.",
+      "arch:dependsOn": [
+        "arch:service/audio-module",
+        "arch:service/transcribe-module",
+        "arch:service/gpt-module"
+      ],
+      "arch:exposesPort": 8501,
+      "arch:techStack": ["Streamlit", "Python"],
+      "arch:healthEndpoint": null,
+      "arch:configuredIn": "app.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/audio-module",
+      "@type": "arch:Service",
+      "name": "Audio Module",
+      "description": "Core audio capture and file processing (whisperSSTis/audio.py). Handles device enumeration, real-time recording via AudioStream class, file loading with format conversion, resampling to 16kHz, and mono conversion.",
+      "arch:dependsOn": [
+        "arch:external/portaudio",
+        "arch:external/ffmpeg"
+      ],
+      "arch:exposesPort": null,
+      "arch:techStack": ["sounddevice", "soundfile", "scipy", "numpy", "subprocess/ffmpeg"],
+      "arch:configuredIn": "whisperSSTis/audio.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/transcribe-module",
+      "@type": "arch:Service",
+      "name": "Transcription Module",
+      "description": "Whisper model loading and inference (whisperSSTis/transcribe.py). Supports multiple model configs (Icelandic, English), chunk-based long audio transcription with timestamps, and SRT subtitle generation.",
+      "arch:dependsOn": [
+        "arch:external/huggingface-model-icelandic",
+        "arch:external/huggingface-model-english",
+        "arch:external/pytorch"
+      ],
+      "arch:exposesPort": null,
+      "arch:techStack": ["PyTorch", "HuggingFace Transformers", "numpy"],
+      "arch:configuredIn": "whisperSSTis/transcribe.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/gpt-module",
+      "@type": "arch:Service",
+      "name": "GPT Post-Processing Module",
+      "description": "Optional OpenAI GPT integration (whisperSSTis/gpt.py). Sends transcribed text (not audio) to GPT for summarization, translation, or cleanup. Gracefully handles missing openai package.",
+      "arch:dependsOn": [
+        "arch:external/openai-api"
+      ],
+      "arch:exposesPort": null,
+      "arch:techStack": ["OpenAI Python SDK"],
+      "arch:configuredIn": "whisperSSTis/gpt.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/launcher",
+      "@type": "arch:Service",
+      "name": "Desktop Launcher",
+      "description": "Tkinter GUI launcher (launcher.py). Manages Streamlit process lifecycle, port allocation (8501), browser auto-open, and graceful shutdown. Uses psutil for process management.",
+      "arch:dependsOn": [
+        "arch:service/streamlit-app"
+      ],
+      "arch:exposesPort": null,
+      "arch:techStack": ["Tkinter", "psutil", "subprocess"],
+      "arch:configuredIn": "launcher.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/build-system",
+      "@type": "arch:Service",
+      "name": "PyInstaller Build",
+      "description": "Executable packaging via PyInstaller (build.py). Creates single-file executables bundling model cache and whisperSSTis module. Produces dist/WhisperSST_package/ with platform scripts.",
+      "arch:dependsOn": [
+        "arch:service/launcher"
+      ],
+      "arch:exposesPort": null,
+      "arch:techStack": ["PyInstaller"],
+      "arch:configuredIn": "build.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:service/legacy-monolith",
+      "@type": "arch:Service",
+      "name": "Legacy Monolithic App",
+      "description": "DEPRECATED AND REMOVED: Original single-file application (sst_is_test.py). Deleted in modernize/2026-03-14 branch. All functionality lives in whisperSSTis/ package.",
+      "arch:deprecated": true,
+      "arch:exposesPort": null,
+      "arch:techStack": ["Streamlit", "PyTorch"],
+      "arch:configuredIn": "sst_is_test.py",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:datastore/session-state",
+      "@type": "arch:DataStore",
+      "name": "Streamlit Session State",
+      "description": "In-memory session state storing: model instance, processor instance, audio_data (numpy array), last_transcript_text, gpt responses, selected_model_key, and language_token. Ephemeral — lost on page refresh.",
+      "arch:techStack": ["Streamlit"],
+      "arch:exposesPort": null,
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:datastore/model-cache",
+      "@type": "arch:DataStore",
+      "name": "HuggingFace Model Cache",
+      "description": "Local filesystem cache for downloaded Whisper model weights. Managed by HuggingFace hub. Default location: ~/.cache/huggingface/. Approximately 4GB per model.",
+      "arch:techStack": ["HuggingFace Hub"],
+      "arch:exposesPort": null,
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:datastore/temp-files",
+      "@type": "arch:DataStore",
+      "name": "Temporary Audio Files",
+      "description": "System temp directory used for uploaded file processing and recording playback. Files created via tempfile.NamedTemporaryFile and temp_recording.wav. Cleaned up in finally blocks.",
+      "arch:techStack": ["Python tempfile"],
+      "arch:exposesPort": null,
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:external/portaudio",
+      "@type": "arch:ExternalDependency",
+      "name": "PortAudio",
+      "description": "System-level audio I/O library. Required by sounddevice for microphone capture. Must be installed via package manager (brew/apt/dnf).",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:external/ffmpeg",
+      "@type": "arch:ExternalDependency",
+      "name": "FFmpeg",
+      "description": "Audio format conversion called via subprocess. Required for M4A, MP3, OGG, WebM to WAV conversion. Must be installed as a system package.",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T06:30:00Z"
+    },
+
+    {
+      "@id": "arch:external/huggingface-model-icelandic",
+      "@type": "arch:ExternalDependency",
+      "name": "Icelandic Whisper Model",
+      "description": "Fine-tuned Whisper Large model: carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h. Downloaded once from HuggingFace Hub, cached locally.",
+      "url": "https://huggingface.co/carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:external/huggingface-model-english",
+      "@type": "arch:ExternalDependency",
+      "name": "English Whisper Model",
+      "description": "OpenAI Whisper Large v3: openai/whisper-large-v3. Downloaded once from HuggingFace Hub, cached locally.",
+      "url": "https://huggingface.co/openai/whisper-large-v3",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:external/pytorch",
+      "@type": "arch:ExternalDependency",
+      "name": "PyTorch Runtime",
+      "description": "Deep learning framework for model inference. CUDA used when available, CPU fallback. Handles tensor operations and model execution.",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:external/openai-api",
+      "@type": "arch:ExternalDependency",
+      "name": "OpenAI API",
+      "description": "Optional external API for GPT post-processing. Only sends transcribed text (not audio). Requires OPENAI_API_KEY environment variable. Default model: gpt-4o-mini.",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:flow/mic-to-transcription",
+      "@type": "arch:DataFlow",
+      "name": "Microphone Recording Flow",
+      "description": "User clicks Record -> AudioStream captures chunks at native sample rate -> resamples to 16kHz -> concatenates -> Whisper model inference -> text displayed in UI",
+      "arch:source": "arch:external/portaudio",
+      "arch:target": "arch:service/transcribe-module",
+      "arch:protocol": "in-process",
+      "arch:dataType": "numpy.float32 audio array (16kHz mono)",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:flow/upload-to-transcription",
+      "@type": "arch:DataFlow",
+      "name": "File Upload Flow",
+      "description": "User uploads audio file -> saved to temp file -> M4A converted via pydub/FFmpeg -> read with soundfile -> resampled to 16kHz -> chunked into 30s segments -> each chunk transcribed -> timestamped results displayed with TXT/SRT export",
+      "arch:source": "arch:service/streamlit-app",
+      "arch:target": "arch:service/transcribe-module",
+      "arch:protocol": "in-process",
+      "arch:dataType": "numpy.float32 audio array (16kHz mono)",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:flow/transcript-to-gpt",
+      "@type": "arch:DataFlow",
+      "name": "GPT Post-Processing Flow",
+      "description": "User provides instruction + transcript text -> sent to OpenAI API via gpt.run_on_transcript() -> response displayed in expandable panel. Only text is sent, never audio.",
+      "arch:source": "arch:service/streamlit-app",
+      "arch:target": "arch:external/openai-api",
+      "arch:protocol": "HTTPS REST",
+      "arch:dataType": "JSON (chat completions)",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:flow/model-download",
+      "@type": "arch:DataFlow",
+      "name": "Model Download Flow",
+      "description": "First launch: HuggingFace Hub downloads model weights (~4GB) -> cached in ~/.cache/huggingface/ -> subsequent launches load from cache (no network needed)",
+      "arch:source": "arch:external/huggingface-model-icelandic",
+      "arch:target": "arch:datastore/model-cache",
+      "arch:protocol": "HTTPS",
+      "arch:dataType": "PyTorch model weights + tokenizer config",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:infra/streamlit-config",
+      "@type": "arch:Infrastructure",
+      "name": "Streamlit Configuration",
+      "description": "Server config: max upload 1000MB, error-only logging. Located at .streamlit/config.toml.",
+      "arch:exposesPort": 8501,
+      "arch:configuredIn": ".streamlit/config.toml",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    },
+
+    {
+      "@id": "arch:infra/github-actions-ci",
+      "@type": "arch:Infrastructure",
+      "name": "GitHub Actions CI",
+      "description": "Automated CI pipeline running pytest across Python 3.10-3.12, with pip-audit vulnerability scanning. Triggers on push to main and PRs.",
+      "arch:exposesPort": null,
+      "arch:configuredIn": ".github/workflows/ci.yml",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T06:15:00Z"
+    },
+
+    {
+      "@id": "arch:env/local",
+      "@type": "arch:Environment",
+      "name": "Local Development",
+      "description": "Single environment — all processing runs on developer's local machine. No staging or production environments. Virtual env (.venv) recommended but not enforced.",
+      "arch:confidence": "verified",
+      "arch:lastAuditedAt": "2026-03-14T05:51:00Z"
+    }
+  ]
+}
