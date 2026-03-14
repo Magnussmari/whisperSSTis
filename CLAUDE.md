@@ -9,19 +9,17 @@ correctness > privacy > clarity > maintainability > performance
 ## Quick Start
 ```bash
 brew install portaudio ffmpeg       # macOS system deps
-pip install -e ".[dev,gpt]"         # Install in editable mode
-streamlit run app.py                # Launch on http://localhost:8501
+uv sync --all-extras                # Install everything via uv
+uv run streamlit run app.py         # Launch on http://localhost:8501
 ```
 
 ## Commands
 ```bash
-streamlit run app.py              # Run web app directly (port 8501)
-python launcher.py                # Run via Tkinter GUI launcher
-pytest                            # Run all tests (26 tests)
-pytest tests/test_audio.py        # Audio module tests (9)
-pytest tests/test_transcribe.py   # Transcribe module tests (6)
-pytest tests/test_gpt.py          # GPT module tests (11)
-python scripts/build.py           # PyInstaller packaging (run from root)
+uv sync --all-extras              # Install all deps (lockfile-pinned)
+uv run streamlit run app.py       # Run web app (port 8501)
+uv run python launcher.py         # Run via Tkinter GUI launcher
+uv run pytest                     # Run all tests (26 tests)
+uv run python scripts/build.py    # PyInstaller packaging (from root)
 ```
 
 ## Structure
@@ -62,7 +60,7 @@ Two Whisper models in `transcribe.py:MODEL_CONFIGS`:
 - **Session state** — model, processor, audio persisted in `st.session_state`
 - **ffmpeg for conversion** — M4A/MP3/OGG converted via subprocess ffmpeg
 - **GPT is optional** — gpt.py gracefully handles missing `openai` package
-- **Editable install** — use `pip install -e ".[dev,gpt]"` for development
+- **uv for packaging** — `uv sync` with lockfile for reproducible installs
 
 ## System Dependencies
 - **PortAudio** — required by sounddevice for mic capture
