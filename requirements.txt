@@ -1,7 +1,7 @@
 # Core runtime
 streamlit>=1.38
 torch>=2.0
-transformers>=4.37
+transformers>=4.44
 numpy>=1.24
 sounddevice>=0.4.6
 soundfile>=0.12
