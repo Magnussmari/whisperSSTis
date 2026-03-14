@@ -1,12 +1,10 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import numpy as np
 import pytest
 import sounddevice as sd
-import numpy as np
-from unittest.mock import patch
-from whisperSSTis import audio
 from scipy import signal
+from unittest.mock import patch
+
+from whisperSSTis import audio
 
 @pytest.fixture
 def mock_audio_devices():
