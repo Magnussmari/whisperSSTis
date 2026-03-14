@@ -1,14 +1,23 @@
-streamlit
-torch
-transformers
-numpy
-openai
+# Core runtime
+streamlit>=1.38
+torch>=2.0
+transformers>=4.37
+numpy>=1.24
 sounddevice>=0.4.6
-soundfile
-scipy
-ffmpeg-python
-pytest
-pytest-mock
-pyinstaller
-pydub
-psutil
+soundfile>=0.12
+scipy>=1.11
+pydub>=0.25
+psutil>=5.9
+
+# Optional: GPT post-processing
+openai>=1.0
+
+# Optional: audio format conversion
+ffmpeg-python>=0.2
+
+# Dev / testing
+pytest>=8.0
+pytest-mock>=3.12
+
+# Packaging
+pyinstaller>=6.0
