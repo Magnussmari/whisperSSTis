@@ -2,4 +2,11 @@
 level = "error"
 
 [server]
-maxUploadSize = 1000 
+maxUploadSize = 1000
+
+[theme]
+primaryColor = "#2563eb"
+backgroundColor = "#f8fafc"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
+font = "sans serif"
