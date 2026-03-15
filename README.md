@@ -1,300 +1,142 @@
-# 🎙️ Norðlenski hreimurinn
+# Norðlenski hreimurinn
 
-Real-time Icelandic Speech Recognition powered by Whisper AI
+**Local speech recognition for Icelandic and English — 100% private, runs on your machine.**
 
-## 🌟 Overview
+Norðlenski hreimurinn uses fine-tuned [Whisper](https://github.com/openai/whisper) models to transcribe audio locally. No audio ever leaves your computer. Supports microphone recording and file upload with export to TXT and SRT.
 
-WhisperSST.is is a 100% local web application that provides real-time Icelandic speech recognition using a fine-tuned version of OpenAI's Whisper model. This tool runs entirely on your machine - no cloud services or internet connection required for processing (only needed for initial model download). Your audio data never leaves your computer, ensuring complete privacy and security.
+## Quick Start
 
-**Note:** This application is currently in development, so bugs are expected.
-
-## ✨ Features
-
-- 🎤 Record and transcribe audio directly from your microphone
-- 📁 Upload and process audio files (WAV, MP3, M4A, FLAC)
-- 🔒 100% local processing - no cloud or internet needed
-- 🚀 Fast, efficient transcription
-- 🔊 Instant audio playback
-- 📱 User-friendly interface
-- 🇮🇸 Specialized for Icelandic language
-- 💻 Runs on your hardware (CPU/GPU)
-- 📝 Timestamped transcriptions with chunk-based processing
-- 💾 Export to TXT and SRT formats
-- 🧠 Optional GPT assistant for post-processing (summarization, translation, cleanup)
-- ⚙️ Configurable chunk sizes for optimal processing
-- 📊 Real-time processing progress and estimates
-- 🎨 Modern, user-friendly interface with light theme
-
-## 🚀 Future Development
-
-- 🎙️ Live transcription feature for real-time speech-to-text conversion
-- 📊 Support for more audio formats
-- 🧠 Improved accuracy through model fine-tuning
-- 📚 Batch processing for multiple files
-- 👥 Speaker diarization
-- 📄 Export to more formats (DOCX, PDF)
-- 🇮🇸 Icelandic translation of the user interface
-
-## 🛠️ Setup Instructions
-
-### Prerequisites
-- Python 3.8+
-- CUDA-capable GPU (recommended, but CPU works too)
-- Microphone access
-- Internet connection (only for initial model download)
-- ~4GB disk space for models
-
-### Privacy & Security
-- 🔒 **Core transcription is 100% local** - your audio never leaves your computer
-- 💻 All Whisper transcription happens on your machine
-- 🔐 No internet needed after initial model download
-- 🧠 **GPT features are optional** - requires API key and sends text (not audio) to OpenAI
-- 🎯 You control what data is shared with external services
-
-### System Dependencies
-
-#### Ubuntu/Debian
 ```bash
-sudo apt-get update
-sudo apt-get install portaudio19-dev python3-pyaudio
-```
+# Install system dependencies
+brew install portaudio ffmpeg        # macOS
+# sudo apt install portaudio19-dev ffmpeg   # Ubuntu/Debian
 
-#### macOS
-```bash
-brew install portaudio
-```
-
-#### Windows
-The required libraries are typically included with Python packages.
-
-### Installation
-
-1. Clone the repository:
-```bash
+# Clone and install
 git clone https://github.com/Magnussmari/whisperSSTis.git
 cd whisperSSTis
+uv sync --all-extras
+
+# Run
+uv run streamlit run app.py
 ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
+Opens at [http://localhost:8501](http://localhost:8501). First launch downloads the model (~4 GB).
 
-3. Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
+## Features
 
-4. **(Optional)** Configure GPT assistant for post-processing:
+- **Record or upload** — microphone recording with waveform visualization, or upload WAV/MP3/M4A/FLAC
+- **Two language models** — Icelandic (fine-tuned) and English (Whisper Large v3), switchable in the sidebar
+- **100% local** — all transcription runs on your machine. GPU accelerated when available, CPU fallback.
+- **Timestamped export** — download transcripts as TXT or SRT subtitle files
+- **AI assistant** (optional) — GPT post-processing for summarization, translation, cleanup. Requires `OPENAI_API_KEY`. Only sends text, never audio.
+- **Bilingual UI** — Icelandic and English labels throughout
 
-Create a `.env` file or set environment variables:
-```bash
-# Required for GPT features
-export OPENAI_API_KEY="sk-your-api-key"
+## Prerequisites
 
-# Optional: customize GPT model and endpoint
-export GPT_MINI_MODEL="gpt-4o-mini"  # or gpt-3.5-turbo, gpt-4, etc.
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-```
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/) package manager
+- [PortAudio](http://www.portaudio.com/) — for microphone capture
+- [FFmpeg](https://ffmpeg.org/) — for non-WAV audio conversion
+- ~4 GB disk space per model
+- CUDA GPU recommended (not required)
 
-Alternatively, copy `env.example` to `.env` and fill in your values.
+## Configuration
 
-**Note:** The GPT assistant is completely optional. The core transcription functionality works without it.
-
-5. Start the application:
-```bash
-python launcher.py
-```
-
-### Development Setup
-
-For developers who want to contribute or modify the application:
-
-1. Set up your development environment:
-```bash
-# Clone the repository
-git clone https://github.com/Magnussmari/whisperSSTis.git
-cd whisperSSTis
-
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-2. Project Structure:
-```
-whisperSSTis/
-├── app.py                  # Main Streamlit web interface
-├── launcher.py             # GUI launcher with process management
-├── whisperSSTis/           # Core Python module
-│   ├── __init__.py
-│   ├── audio.py           # Audio recording, device management, format conversion
-│   ├── transcribe.py      # Whisper model integration, chunked processing
-│   └── gpt.py             # Optional GPT post-processing helper
-├── tests/                  # Unit tests
-│   ├── test_audio.py
-│   └── test_transcribe.py
-├── .streamlit/             # Streamlit configuration
-│   └── config.toml
-├── requirements.txt        # Python dependencies
-├── env.example            # Environment variable template
-└── setup_dependencies.*   # System dependency installation scripts
-```
-
-3. Running in Development Mode:
-```bash
-# Run with launcher GUI
-python launcher.py
-
-# Run Streamlit directly
-streamlit run app.py
-```
-
-4. Development Guidelines:
-- Follow PEP 8 style guidelines
-- Add docstrings for new functions
-- Update TODO.md for new features/fixes
-- Test changes with different audio inputs
-
-### Running Tests
-
-The project includes comprehensive unit tests for audio and transcription modules:
+Copy `env.example` to `.env` for optional GPT features:
 
 ```bash
-# Run all tests
-pytest
-
-# Run specific test files
-pytest tests/test_audio.py
-pytest tests/test_transcribe.py
-
-# Run with verbose output
-pytest -v
-
-# Run with coverage report
-pytest --cov=whisperSSTis
+OPENAI_API_KEY=sk-your-key    # Required for AI assistant only
+GPT_MINI_MODEL=gpt-4o-mini    # Optional: override model
 ```
 
-### Troubleshooting
+## Project Structure
 
-#### Common Issues
+```
+app.py                     Main Streamlit web application
+launcher.py                Tkinter desktop launcher
+whisperSSTis/              Core Python package
+  audio.py                   Audio capture, file loading, ffmpeg conversion
+  transcribe.py              Whisper model loading and inference
+  gpt.py                     Optional GPT post-processing
+tests/                     pytest test suite (26 tests)
+scripts/                   Build and distribution scripts
+archive/                   Superseded documentation
+docs/missions/             Development mission reports
+.github/workflows/ci.yml   GitHub Actions CI
+pyproject.toml             Package config, dependencies, tool settings
+uv.lock                    Reproducible dependency lockfile
+architecture.jsonld        Machine-readable system architecture graph
+```
 
-- **Application won't start**: 
-  - Run the setup script for your platform
-  - Make sure you have extracted all files from the downloaded package
-  - Try running as administrator
-  - Check your antivirus isn't blocking the application
+## Development
 
-- **No audio input**: 
-  - Run the setup script to install audio dependencies
-  - Check your microphone is properly connected
-  - Allow microphone access in your system settings
-  - Select the correct input device in the application
+```bash
+# Install with all extras
+uv sync --all-extras
 
-- **Slow transcription**:
-  - A GPU is recommended but not required
-  - First launch may be slow while loading the model
-  - Try adjusting chunk size for better performance
-  - Models are cached locally for faster subsequent runs
+# Run tests
+uv run pytest
 
-- **PortAudio Error**: 
-  - Run `setup_dependencies.sh` (macOS/Linux) or `setup_dependencies.bat` (Windows)
-  - Windows: Install Visual C++ Redistributable if prompted
-  - Linux: Run `sudo apt-get install portaudio19-dev python3-pyaudio`
-  - macOS: Run `brew install portaudio`
+# Run the app
+uv run streamlit run app.py
 
-- **Missing Dependencies**:
-  - Run the setup script for your platform
-  - Check the error message for specific missing packages
-  - For Windows, ensure Visual C++ Redistributable is installed
-  - For Linux, install required system packages using your package manager
+# Run via desktop launcher
+uv run python launcher.py
+```
 
-For more help, check the [issues page](https://github.com/Magnussmari/whisperSSTis/issues) or create a new issue.
+### Testing
 
-## 💻 Technical Details
+26 tests covering all three core modules (audio, transcribe, gpt). All tests mock hardware — no GPU or microphone needed in CI.
 
-### Core Stack
-- **Frontend**: Streamlit with custom CSS (modern light theme)
-- **Speech Recognition**: Fine-tuned Whisper model (`carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h`)
-- **Audio Processing**: sounddevice, soundfile, PortAudio
-- **ML Framework**: PyTorch, Hugging Face Transformers
-- **Optional AI**: OpenAI API for post-processing
+```bash
+uv run pytest -v              # Full verbose suite
+uv run pytest tests/test_gpt.py   # Single module
+```
 
-### Processing Details
-- **Sample Rate**: 16kHz (Whisper-optimized)
-- **Chunk Processing**: Configurable 10-60 second segments
-- **Device Support**: Automatic GPU (CUDA) detection with CPU fallback
-- **Audio Formats**: WAV, MP3, M4A, FLAC (via FFmpeg)
-- **Max Upload**: 1000 MB files supported
-- **Privacy**: Core transcription is 100% local; GPT features are optional and require API key
+### CI
 
-### GPT Assistant Features
-When configured with an OpenAI API key, the application offers:
-- **Summarization**: Generate concise summaries in Icelandic or English
-- **Translation**: Translate transcripts between languages
-- **Cleanup**: Improve wording, fix grammar, or reformat text
-- **Custom Instructions**: Flexible prompts for any post-processing task
-- **Configurable**: Adjust temperature and token limits per request
+GitHub Actions runs on every push to `main` and on PRs:
+- Python 3.10, 3.11, 3.12
+- Full test suite
+- `pip-audit` vulnerability scanning
 
-## 👥 Credits
+## Technical Details
 
-### Developer
-- **Magnus Smari Smarason**
+| Component | Details |
+|-----------|---------|
+| Frontend | Streamlit with custom CSS design system |
+| Models | [Icelandic fine-tuned Whisper](https://huggingface.co/carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h), [Whisper Large v3](https://huggingface.co/openai/whisper-large-v3) |
+| ML stack | PyTorch, HuggingFace Transformers 5.x |
+| Audio | sounddevice, soundfile, scipy, subprocess ffmpeg |
+| Package manager | [uv](https://docs.astral.sh/uv/) with lockfile |
+| Sample rate | 16 kHz (Whisper requirement) |
+| Chunk processing | Configurable 10–60 second segments |
+| Max upload | 1 GB |
 
-### Model Credits
-- **Original Whisper Model**: [OpenAI](https://github.com/openai/whisper)
-- **Icelandic Fine-tuned Model**: [Carlos Daniel Hernandez Mena](https://huggingface.co/carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h)
+## Privacy & Security
 
-### Technologies
-- [Streamlit](https://streamlit.io/)
-- [PyTorch](https://pytorch.org/)
-- [Hugging Face Transformers](https://huggingface.co/transformers/)
+- Audio is **never transmitted** over the network
+- Models are downloaded once from Hugging Face, then cached locally
+- GPT features are **opt-in** and only send text (not audio) to OpenAI
+- Temporary files are cleaned up in `finally` blocks
+- `.env` is excluded from version control via `.gitignore`
+- `unsafe_allow_html` is used only for static CSS, never user input
+- CI includes automated vulnerability scanning with `pip-audit`
 
-## 📄 License
+## Credits
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**Developer:** [Magnus Smari Smarason](https://smarason.is)
 
-## 🤝 Contributing
+**Models:**
+- [OpenAI Whisper](https://github.com/openai/whisper)
+- [Icelandic fine-tuned model](https://huggingface.co/carlosdanielhernandezmena/whisper-large-icelandic-10k-steps-1000h) by Carlos Daniel Hernandez Mena
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Magnussmari/whisperSSTis/issues).
+**Built with:** [Streamlit](https://streamlit.io/) · [PyTorch](https://pytorch.org/) · [Hugging Face](https://huggingface.co/)
 
-## 🔒 Security & Privacy
+## License
 
-### Data Privacy
-- **Audio Processing**: 100% local - audio never transmitted over network
-- **Whisper Model**: Downloaded once from Hugging Face, then cached locally
-- **GPT Integration** (optional): Only sends transcribed text (not audio) to OpenAI API
-- **File Uploads**: Processed locally, stored temporarily, automatically cleaned up
+MIT — see [LICENSE](LICENSE).
 
-### Security Considerations
+## Contributing
 
-#### External Dependencies
-- **Hugging Face Model**: Fine-tuned model from reputable source (Carlos Daniel Hernandez Mena)
-- **FFmpeg**: Required for format conversion; keep updated for security patches
-- **OpenAI API** (optional): Requires API key; only sends text data when explicitly requested
-
-#### Code Security
-- **HTML Rendering**: `unsafe_allow_html=True` used only for static CSS styling, not user input
-- **Input Validation**: File type and size validation for uploads (max 1000 MB)
-- **Error Handling**: Proper cleanup of temporary files in all code paths
-- **API Keys**: Environment variable-based configuration (never hardcoded)
-
-### Security Best Practices
-1. **Keep Dependencies Updated**: Regularly update `transformers`, `streamlit`, `ffmpeg-python`, and other packages
-2. **API Key Management**: Store `OPENAI_API_KEY` in `.env` file (not version controlled)
-3. **Offline Mode**: Core functionality works without internet after initial model download
-4. **Model Integrity**: Hugging Face models include checksums for verification
-5. **Network Isolation**: Consider running offline if handling sensitive audio
-
-### Recommendations
-- Monitor dependencies for CVEs using tools like `pip-audit` or Dependabot
-- Keep FFmpeg system package updated via your OS package manager
-- Review `.gitignore` to ensure `.env` and sensitive files are never committed
-- Use the application offline when processing confidential audio
-<p align="center">
-Developed with ❤️ for the Icelandic language community
-</p>
+Issues and pull requests welcome at [github.com/Magnussmari/whisperSSTis](https://github.com/Magnussmari/whisperSSTis/issues).
