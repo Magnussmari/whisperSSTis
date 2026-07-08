@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "whisperSSTis — local Icelandic speech recognition"
+authors:
+  - family-names: "Smárason"
+    given-names: "Magnús Smári"
+    orcid: "https://orcid.org/0009-0008-2050-021X"
+    website: "https://smarason.is"
+repository-code: "https://github.com/Magnussmari/whisperSSTis"
+url: "https://github.com/Magnussmari/whisperSSTis"
+license: MIT
+abstract: "Privacy-preserving local speech-to-text for Icelandic and English — transcription that never leaves the machine."
